@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs"),
     auth = require("./middleware/auth"),
     authService = require('./services/authService');
 
-module.exports = (app) => {
+module.exports = (app, ddb, ddbTable) => {
     console.log('Initializing routes');
 
     // Handle GET requests to /public route
@@ -43,6 +43,32 @@ module.exports = (app) => {
                 email: email.toLowerCase(),
                 password: encryptedPassword,
             };
+
+            var dbEntity = {
+                'email': { 'S': user.email },
+                'name': { 'S': user.first_name },
+                'preview': { 'S': 'false' },
+                'theme': { 'S': 'theme' }
+            };
+
+            ddb.putItem({
+                'TableName': ddbTable,
+                'Item': dbEntity,
+                'Expected': { email: { Exists: false } }
+            }, function (err, data) {
+                if (err) {
+                    var returnStatus = 500;
+
+                    if (err.code === 'ConditionalCheckFailedException') {
+                        returnStatus = 409;
+                    }
+
+                    res.status(returnStatus).end();
+                    console.log('DDB Error: ' + err);
+                } else {
+                    console.log('DDB insert success!');
+                }
+            });
 
             // Create token
             const access_token = authService.jwt_token({ user_id: user.id, email });

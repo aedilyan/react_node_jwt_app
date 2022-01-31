@@ -23,7 +23,19 @@ app.use((req, res, next) => {
     next();
 });
 
-require('./routes')(app);
+// setup DynamoDb
+let AWS = require('aws-sdk');
+AWS.config.update({
+    region: process.env.AWS_REGION,
+    endpoint: process.env.AWS_ENDPOINT,
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+});
+let ddb = new AWS.DynamoDB();
+let ddbTable =  'nodejs-tutorial';
+
+
+require('./routes')(app, ddb, ddbTable);
 
 //prod: All other GET requests not handled before will return our React app
 app.get('*', (req, res) => {
